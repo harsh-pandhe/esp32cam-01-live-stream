@@ -1,5 +1,6 @@
 #include "esp_camera.h"
 #include <WiFi.h>
+#include "mbedtls/base64.h"
 
 #define PWDN_GPIO_NUM     32
 #define RESET_GPIO_NUM    -1
@@ -49,12 +50,12 @@ void setup() {
   config.pixel_format = PIXFORMAT_JPEG;
 
   if(psramFound()){
-    config.frame_size = FRAMESIZE_UXGA; // 1600x1200 high resolution
-    config.jpeg_quality = 8;
+    config.frame_size = FRAMESIZE_VGA; // 640x480 for fast 100% reliable decode
+    config.jpeg_quality = 10;
     config.fb_count = 1;
   } else {
-    config.frame_size = FRAMESIZE_SVGA;
-    config.jpeg_quality = 10;
+    config.frame_size = FRAMESIZE_QVGA;
+    config.jpeg_quality = 12;
     config.fb_count = 1;
   }
 
@@ -64,7 +65,7 @@ void setup() {
   if (s) {
     s->set_brightness(s, 1);
     s->set_contrast(s, 1);
-    s->set_sharpness(s, 2);
+    s->set_sharpness(s, 1);
     s->set_whitebal(s, 1);
     s->set_exposure_ctrl(s, 1);
   }
@@ -75,13 +76,22 @@ void loop() {
     char cmd = Serial.read();
     if (cmd == 'C') {
       digitalWrite(LED_FLASH_GPIO, HIGH);
-      delay(150);
+      delay(200);
       camera_fb_t * fb = esp_camera_fb_get();
       digitalWrite(LED_FLASH_GPIO, LOW);
+
       if (fb) {
-        Serial.printf("START_JPEG:%u\n", (unsigned int)fb->len);
-        Serial.write(fb->buf, fb->len);
-        Serial.println("\nEND_JPEG");
+        size_t b64_len = 0;
+        mbedtls_base64_encode(NULL, 0, &b64_len, fb->buf, fb->len);
+        unsigned char * b64_buf = (unsigned char *)malloc(b64_len + 1);
+        if (b64_buf) {
+          mbedtls_base64_encode(b64_buf, b64_len, &b64_len, fb->buf, fb->len);
+          b64_buf[b64_len] = '\0';
+          Serial.printf("B64_START:%u\n", (unsigned int)b64_len);
+          Serial.println((char*)b64_buf);
+          Serial.println("B64_END");
+          free(b64_buf);
+        }
         esp_camera_fb_return(fb);
       }
     }
