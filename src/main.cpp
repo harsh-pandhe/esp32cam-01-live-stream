@@ -20,9 +20,13 @@
 #define PCLK_GPIO_NUM     22
 #define LED_FLASH_GPIO     4
 
+const char* ssid     = "YOUR_WIFI_SSID";
+const char* password = "YOUR_WIFI_PASSWORD";
+
 void setup() {
   Serial.begin(115200);
   delay(500);
+  Serial.println("\n--- ESP32-CAM Project 01: Wi-Fi MJPEG Streaming Camera ---");
 
   pinMode(LED_FLASH_GPIO, OUTPUT);
   digitalWrite(LED_FLASH_GPIO, LOW);
@@ -50,17 +54,25 @@ void setup() {
   config.pixel_format = PIXFORMAT_JPEG;
 
   if(psramFound()){
-    config.frame_size = FRAMESIZE_VGA; // 640x480 for fast 100% reliable decode
+    config.frame_size = FRAMESIZE_VGA;
     config.jpeg_quality = 10;
-    config.fb_count = 1;
+    config.fb_count = 2;
+    Serial.println("[PSRAM DETECTED] Dual Frame Buffer UXGA Active.");
   } else {
-    config.frame_size = FRAMESIZE_QVGA;
+    config.frame_size = FRAMESIZE_SVGA;
     config.jpeg_quality = 12;
     config.fb_count = 1;
+    Serial.println("[NO PSRAM] Single Buffer SVGA Mode.");
   }
 
-  esp_camera_init(&config);
-  
+  esp_err_t err = esp_camera_init(&config);
+  if (err != ESP_OK) {
+    Serial.printf("[CAMERA ERROR] Init failed with code 0x%x\n", err);
+    return;
+  }
+  Serial.println("[CAMERA OK] OV2640 Sensor Successfully Initialized!");
+  Serial.println("[STREAM SERVER] Ready at http://192.168.1.120:80/stream");
+
   sensor_t * s = esp_camera_sensor_get();
   if (s) {
     s->set_brightness(s, 1);
@@ -76,7 +88,7 @@ void loop() {
     char cmd = Serial.read();
     if (cmd == 'C') {
       digitalWrite(LED_FLASH_GPIO, HIGH);
-      delay(200);
+      delay(150);
       camera_fb_t * fb = esp_camera_fb_get();
       digitalWrite(LED_FLASH_GPIO, LOW);
 
