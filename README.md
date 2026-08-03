@@ -9,7 +9,9 @@ High-performance real-time MJPEG video streaming server engineered for the AI-Th
 
 ---
 
-## 🖥️ Real Hardware Execution & Flashing Proof
+## 🖥️ Real Live Dashboard Interface & Hardware Trace
+
+![Real Live Web Dashboard Footage](./docs/dashboard.png)
 
 ### 1. Chip Identification (`esptool v5.3.1`)
 ```text
