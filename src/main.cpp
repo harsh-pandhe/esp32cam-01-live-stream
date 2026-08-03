@@ -1,13 +1,11 @@
 #include "esp_camera.h"
 #include <WiFi.h>
 
-// AI Thinker ESP32-CAM Pin Configuration
 #define PWDN_GPIO_NUM     32
 #define RESET_GPIO_NUM    -1
 #define XCLK_GPIO_NUM      0
 #define SIOD_GPIO_NUM     26
 #define SIOC_GPIO_NUM     27
-
 #define Y9_GPIO_NUM       35
 #define Y8_GPIO_NUM       34
 #define Y7_GPIO_NUM       39
@@ -19,18 +17,14 @@
 #define VSYNC_GPIO_NUM    25
 #define HREF_GPIO_NUM     23
 #define PCLK_GPIO_NUM     22
-
 #define LED_FLASH_GPIO     4
-
-const char* ssid     = "YOUR_WIFI_SSID";
-const char* password = "YOUR_WIFI_PASSWORD";
 
 void setup() {
   Serial.begin(115200);
-  Serial.println("\n--- ESP32-CAM Initialization ---");
+  delay(500);
 
   pinMode(LED_FLASH_GPIO, OUTPUT);
-  digitalWrite(LED_FLASH_GPIO, LOW); // Flash LED off
+  digitalWrite(LED_FLASH_GPIO, LOW);
 
   camera_config_t config;
   config.ledc_channel = LEDC_CHANNEL_0;
@@ -51,30 +45,36 @@ void setup() {
   config.pin_sccb_scl = SIOC_GPIO_NUM;
   config.pin_pwdn     = PWDN_GPIO_NUM;
   config.pin_reset    = RESET_GPIO_NUM;
-  config.xclk_freq_hz = 20000000;
+  config.xclk_freq_hz = 10000000;
   config.pixel_format = PIXFORMAT_JPEG;
 
   if(psramFound()){
-    config.frame_size = FRAMESIZE_UXGA;
-    config.jpeg_quality = 10;
-    config.fb_count = 2;
-    Serial.println("PSRAM Detected!");
-  } else {
-    config.frame_size = FRAMESIZE_SVGA;
+    config.frame_size = FRAMESIZE_VGA; // 640x480 for fast serial dump
     config.jpeg_quality = 12;
     config.fb_count = 1;
-    Serial.println("No PSRAM detected, limited to SVGA.");
+  } else {
+    config.frame_size = FRAMESIZE_QVGA;
+    config.jpeg_quality = 15;
+    config.fb_count = 1;
   }
 
-  esp_err_t err = esp_camera_init(&config);
-  if (err != ESP_OK) {
-    Serial.printf("Camera init failed with error 0x%x\n", err);
-    return;
-  }
-  Serial.println("Camera successfully initialized!");
+  esp_camera_init(&config);
 }
 
 void loop() {
-  delay(5000);
-  Serial.println("ESP32-CAM active and monitoring...");
+  if (Serial.available() > 0) {
+    char cmd = Serial.read();
+    if (cmd == 'C') {
+      digitalWrite(LED_FLASH_GPIO, HIGH);
+      delay(50);
+      camera_fb_t * fb = esp_camera_fb_get();
+      digitalWrite(LED_FLASH_GPIO, LOW);
+      if (fb) {
+        Serial.printf("START_JPEG:%u\n", (unsigned int)fb->len);
+        Serial.write(fb->buf, fb->len);
+        Serial.println("\nEND_JPEG");
+        esp_camera_fb_return(fb);
+      }
+    }
+  }
 }
